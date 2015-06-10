@@ -1,0 +1,264 @@
+#Author:    Feng Ding
+#Mail:      opsteev@gmail.com
+#History:      Inspired by Yunhong Zhao
+#              Init     2015-5-21   Feng Ding
+#              Done     2015-5-28   Feng Ding       1.1
+package req Itcl
+package req Expect
+package req LOG
+
+package provide CLI 1.1
+
+
+itcl::class CLI {
+    inherit LOG
+    variable cli_timeout
+    public variable my_spawn_id
+    public variable mgt_type
+    public variable mgt_username
+    public variable mgt_password
+    public variable mgt_port
+    public variable mgt_ip
+    public variable mgt_serial
+    public variable mgt_serial_baud_rate
+    public variable mgt_serial_data_bits
+    public variable mgt_serial_parity
+    public variable mgt_serial_stop_bits
+    variable connected
+    variable use_screen
+    public variable free_output
+    public variable free_buffer
+    public variable logon_prompt
+    public variable logon
+    constructor {args} {
+        init {*}$args
+    }
+    destructor {
+    }
+    public method init {args} {
+        chain {*}$args
+        array set opts {
+            -mgt_type   ""
+            -mgt_ip     ""
+            -mgt_port   ""
+            -mgt_serial ""
+            -mgt_serial_baud_rate   "9600"
+            -mgt_serial_data_bits   "n"
+            -mgt_serial_parity      "8"
+            -mgt_serial_stop_bits   "1"
+            -mgt_username   ""
+            -mgt_password   ""
+            -timeout    20
+            -logon_prompt {[$#][\s\n]*$}
+            -logon 1
+        }
+        array set opts $args
+        set mgt_type $opts(-mgt_type)
+        set mgt_ip $opts(-mgt_ip)
+        set mgt_port $opts(-mgt_port)
+        set mgt_serial $opts(-mgt_serial)
+        set mgt_serial_baud_rate $opts(-mgt_serial_baud_rate)
+        set mgt_serial_data_bits $opts(-mgt_serial_data_bits)
+        set mgt_serial_parity $opts(-mgt_serial_parity)
+        set mgt_serial_stop_bits $opts(-mgt_serial_stop_bits)
+        set mgt_username $opts(-mgt_username)
+        set mgt_password $opts(-mgt_password)
+        set cli_timeout $opts(-timeout)
+        set logon_prompt $opts(-logon_prompt)
+        set logon $opts(-logon)
+        set connected 0
+        set use_screen 0
+        set free_buffer ""
+        set free_output 0
+    }
+    public method help {} {
+        log_info "Help:"
+    }
+    public method my_spawn {program args} {
+        set spawn_cmd "spawn $program $args"
+        eval $spawn_cmd
+        set my_spawn_id $spawn_id
+    }
+    public method get_timeout {} {
+        return $cli_timeout
+    }
+    public method set_timeout {t} {
+        set cli_timeout $t
+    }
+    public method my_send {cmd} {
+        set send_slow {1 .1}
+        set spawn_id $my_spawn_id
+        exp_send -s -- $cmd
+    }
+    public method my_expect {args} {
+        set spawn_id $my_spawn_id
+        set timeout [get_timeout]
+        log_debug "my_expect $args"
+        expect {*}$args
+    }
+    public method enable_free_output {{printlog 1}} {
+        set spawn_id $my_spawn_id
+        expect_background [subst -nocommands {
+            -i $spawn_id
+            -re ".+" {
+                $this append_free_buffer \$expect_out(buffer)
+                if {$printlog == 1} {
+                    log_device \$expect_out(buffer)
+                }
+            } eof {
+                $this disconnect
+            }
+        }]
+        set free_output 1
+    }
+    public method disable_free_output {} {
+        set spawn_id $my_spawn_id
+        expect -i $spawn_id -re .*
+        set f_buffer $free_buffer
+        set free_buffer ""
+        set free_output 0
+        return $f_buffer
+    }
+    public method get_free_buffer {} {
+        return $free_buffer
+    } 
+    public method set_free_buffer {buf} {
+        set free_buffer $buf
+    }
+    public method append_free_buffer {buf} {
+        append free_buffer $buf
+    }
+    public method clear_free_buffer {} {
+        set free_buffer ""
+    }
+    public method ssh {} {
+        if {$mgt_port == ""} {
+            set mgt_port 22
+        }
+        if {$mgt_username == "" || $mgt_password == "" || $mgt_ip == ""} {
+            help
+            return 0
+        }
+        set my_spawn_id [my_spawn ssh -o StrictHostKeyChecking=no $mgt_username@$mgt_ip -p $mgt_port]
+        set connected 0
+        set logon_log_lv [expr ($logon == 1)?"log_error":"log_info"]
+        my_expect [subst -nocommands {
+            -ex "No route to host"      {$logon_log_lv "No route to host"}
+            -ex "Connection timed out"  {$logon_log_lv "Connection timed out"}
+            -ex "Connection refused"    {$logon_log_lv "Connection refused"}
+            -ex "(yes/no)?"             {log_device "\$expect_out(buffer)"; my_send "yes\\r";exp_continue}
+            -ex "(y/n)?"                {log_device "\$expect_out(buffer)"; my_send "y\\r";exp_continue}
+            -re {(assword:[\\s\\n]*)$}  {log_device "\$expect_out(buffer)"; my_send "$mgt_password\\r"; exp_continue}
+            -re {$logon_prompt}         {log_device "\$expect_out(buffer)"; set connected 1}
+            timeout                     {$logon_log_lv "ssh time out: \$timeout"}
+        }]
+        if {$connected == 0} {disconnect}
+        return $connected
+    }
+    public method telnet {} {
+        if {$mgt_port == ""} {
+            set mgt_port 23
+        }
+        set my_spawn_id [my_spawn telnet $mgt_ip $mgt_port]
+        set connected 0
+        set logon_log_lv [expr ($logon == 1)?"log_error":"log_info"]
+        my_expect [subst -nocommands {
+            -ex "No route to host"      {$logon_log_lv "No route to host"}
+            -ex "Connection timed out"  {$logon_log_lv "Connection timed out"}
+            -ex "Connection refused"    {$logon_log_lv "Connection refused"}
+            -re {$logon_prompt}           {log_device "\$expect_out(buffer)"; set connected 1}
+            -re {(ogin:[\\s\\n]*)$}       {log_device "\$expect_out(buffer)"; my_send "$mgt_username\\r"; exp_continue}
+            -re {(assword:[\\s\\n]*)$}    {log_device "\$expect_out(buffer)"; my_send "$mgt_password\\r"; exp_continue}
+            timeout                     {$logon_log_lv "telnet time out: \$timeout"}
+        }]
+        if {$connected == 0} {disconnect}
+        return $connected
+    }
+    public method serial {} {
+        #Because opening a serial port is not currently implemented under Macintosh,
+        #Using screen to open the serial port here
+        if {$::tcl_platform(os) == "Darwin"} {
+            if [catch {my_spawn screen $mgt_serial $mgt_serial_baud_rate} result] {
+                log_error "Connect to serial failed"
+                log_debug "Reason: $result"
+                set use_screen 0
+                set connected 0
+                return 0
+            }
+            set use_screen 1
+        } else {
+            set serial [open $mgt_serial w+]
+            if [catch {fconfigure $serial -blocking 0 -mode $mgt_serial_baud_rate,$mgt_serial_parity,$mgt_serial_data_bits,$mgt_serial_stop_bits -translation {auto cr}} result] {
+                log_error "Connected to serial failed"
+                log_debug "Reason: $result"
+                set connected 0
+                return 0
+            }
+            my_spawn -open $serial
+        }
+        set connected 1
+        return 1
+    }
+    public method is_connected {} {
+        if {$connected == 0} {return 0}
+        log_info "Has connected to $mgt_ip$mgt_serial"
+        return 1
+    }
+    public method connect {} {
+        if [is_connected] {return 1}
+        switch -exact -- [string tolower $mgt_type] {
+            ssh     {return [ssh]}
+            telnet  {return [telnet]}
+            serial  {return [serial]}
+            default {log_error "Only implement ssh telnet serial";return -1}
+        }
+    }
+    public method disconnect {} {
+        clear_free_buffer
+        if {$use_screen == 1} {
+            catch {my_send "\01k"}
+            catch {
+                my_expect {
+                    -re "Really kill this window" {
+                        catch {my_send "y"}
+                        exp_continue
+                    }
+                    -re "screen is terminating" {
+                        log_debug "screen is terminating"
+                    }
+                    timeout {
+                        log_debug "Force kill the screen"
+                        exec kill -9 [exec ps ax | grep {$mgt_serial} | grep -v grep | awk {{print $1}}]
+                    }
+                }
+            }
+        }
+        catch {close -i $my_spawn_id; wait -i $my_spawn_id}
+        set connected 0
+    }
+    public method reconnect {} {
+        disconnect
+        connect
+    }
+    public method get_spawn_id {} {
+        return $my_spawn_id
+    }
+    public method get_process_id {} {
+        return [exp_pid -i $my_spawn_id]
+    }
+    public method set_var {var_name var_value} {
+        if [info exists $var_name] {
+            set $var_name $var_value
+        } else {
+            return [chain $var_name $var_value]
+        }
+    }
+    public method get_var {var_name} {
+        if [info exists $var_name] {
+            upvar 0 $var_name local_var
+            return $local_var
+        } else {
+            return [chain $var_name]
+        }
+    }
+}

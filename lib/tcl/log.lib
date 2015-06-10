@@ -1,0 +1,108 @@
+#Author:    Feng Ding
+#Mail:      opsteev@gmail.com
+#History:   Init    2015-5-21   Feng Ding
+package req Itcl
+package provide LOG 1.1
+
+
+itcl::class LOG {
+    variable log_type
+    variable log_destination
+    variable log_clock
+    variable log_level
+    variable log_speaker
+    variable log_fd
+    constructor {args} {
+        init {*}$args
+    }
+    destructor {
+        if {$log_fd != "stdout"} {
+            catch {close $log_fd}
+        }
+    }
+    protected method init {args} {
+        array set opts {
+            -type info
+            -destination stdout
+            -speaker    ARSENIC
+        }
+        set opts(-speaker) [lindex [split $this :] end]
+        array set opts $args
+        set log_type $opts(-type)
+        set log_destination $opts(-destination)
+        set log_speaker $opts(-speaker)
+        set log_clock [clock format [clock seconds] -format "%Y-%m-%d %H:%M:%S"]
+        array set log_level {
+            device  5
+            info    1
+            warning 2
+            error   3
+            debug   0
+        }
+        set log_fd "stdout"
+        if {$log_destination != "stdout"} {
+            if [file exists $log_destination] {
+                set log_fd [open $log_destination a+]
+            } else {
+                puts "Invalid file $log_destination, will puts to stdout"
+            }
+        }
+    }
+    public method set_var {var_name var_value} {
+        if [::info exists $var_name] {
+            set $var_name $var_value
+        } else {
+            return
+        }
+    }
+    public method get_var {var_name} {
+        puts "[itcl::scope $var_name]"
+        puts "[info exists [itcl::scope $var_name]]"
+        if [::info exists $var_name] {
+            upvar 0 $var_name log_var
+            return $log_var
+        } else {
+            return "Invalid Variable"
+        }
+    }
+    private method log_print {msg} {
+        set msgs [split $msg \r\n]
+        foreach msg $msgs {
+            if {$msg == ""} {continue}
+            set msg [format "%s|%8s|%15s: %s" $log_clock [string toupper $log_type] $log_speaker $msg]
+            puts $log_fd $msg
+        }
+    }
+    public method log_print_raw {msg} {
+        puts $log_fd $msg
+    }
+    public method log_device {msg} {
+        set log_type device
+        log_print $msg
+    }
+    public method log_info {msg} {
+        set log_type info
+        log_print $msg
+    }
+    public method log_warning {msg} {
+        set log_type warning
+        log_print $msg
+    }
+    public method log_debug {msg} {
+        set log_type debug
+        log_print $msg
+    }
+    public method log_error {msg} {
+        set log_type error
+        log_print $msg
+    }
+    public method log_pass {msg} {
+        set log_type pass
+        log_print $msg
+    }
+    public method log_fail {msg} {
+        set log_type fail
+        log_print $msg
+    }
+}
+LOG logger 

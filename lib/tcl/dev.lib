@@ -1,0 +1,190 @@
+#Author:    Feng Ding
+#Mail:      opsteev@gmail.com
+#History:   Inspired by Yunhong Zhao
+#           Init 2015-5-22   Feng Ding
+
+package req Expect
+package req Itcl
+package req LOG
+package req CLI
+package provide DEV 1.1
+
+itcl::class DEV {
+    inherit CLI
+    variable mode_list
+    variable path
+    variable slow_path
+    variable auto_response_list
+    public variable auto_response
+    constructor {args} {
+        init {*}$args
+    }
+    destructor {}
+    public method init {args} {
+        chain {*}$args
+        set mode_list {}
+        set slow_path {}
+        set auto_response_list {}
+        set auto_response 1
+    }
+    public method set_var {var_name var_value} {
+        if [info exists $var_name] {
+            set $var_name $var_value
+        } else {
+            return [chain $var_name $var_value]
+        }
+    }
+    public method get_var {var_name} {
+        if [info exists $var_name] {
+            upvar 0 $var_name local_var
+            return $local_var
+        } else {
+            return [chain $var_name]
+        }
+    }
+    protected method add_mode {mode_name pattern} {
+        lappend mode_list $mode_name $pattern
+    }
+    protected method add_path {mode1 mode2 forward_cmd backward_cmd args} {
+        set opts(-fw_timeout) [get_timeout]
+        set opts(-fw_weight) 1
+        set opts(-bw_timeout) [get_timeout]
+        set opts(-bw_weight) 1
+        array set opts $args
+        set path($mode1,$mode2) $forward_cmd
+        set path($mode1,$mode2,timeout) $opts(-fw_timeout)
+        set path($mode1,$mode2,weight) $opts(-fw_weight)
+        set path($mode2,$mode1) $backward_cmd
+        set path($mode2,$mode1,timeout) $opts(-bw_timeout)
+        set path($mode2,$mode1,weight) opts(-bw_weight)
+        log_debug "path($mode1,$mode2) == $path($mode1,$mode2)"
+        log_debug "path($mode2,$mode1) == $path($mode2,$mode1)"
+    }
+    protected method add_auto_response {pattern cmd} {
+        lappend auto_response_list $pattern $cmd
+    }
+    protected method set_path {p} {
+        set slow_path $p
+    }
+    public method send_line {{cmd ""}} {
+        my_send $cmd\r
+    }
+    public method get_mode {args} {
+        cmd "" -get_mode 1
+    }
+    public method cmd {cmds args} {
+        set opts(-get_mode) 0
+        set opts(-prompt) ""
+        set ret_buffer ""
+        set cur_mode ""
+        log_debug "cmd == $cmds"
+        array set opts $args
+        if [info exists opts(-timeout)] {set_timeout $opts(-timeout)}
+        set tmp_cmd_list [split $cmds \r\n]
+        set cmd_list ""
+        foreach c $tmp_cmd_list {
+            if {[set c [string trim $c]] == ""} {continue}
+            if {[string first # $c] == 0} {continue}
+            lappend cmd_list $c
+        }
+        if {$opts(-get_mode) == 1} {set cmd_list [list ""]}
+        foreach command $cmd_list {
+            expr $free_output==1?"[clear_free_buffer]":""
+            send_line $command
+            if {$free_output == 1} {
+                set time_start [clock seconds]
+                while {[expr [clock seconds] <= [expr $time_start + [get_timeout]]]} {
+                    set cur_buffer [get_free_buffer]
+                    append ret_buffer $cur_buffer
+                    if {$auto_response == 1} {
+                        foreach {pattern response} $auto_response_list {
+                            if [regexp $pattern $cur_buffer] {
+                                clear_free_buffer
+                                send_line $response
+                                set cur_buffer [get_free_buffer]
+                            }
+                        }
+                    }
+                    foreach {mode_name mode_pattern} $mode_list {
+                        if [regexp $mode_pattern $cur_buffer] {
+                            set cur_mode $mode_name
+                            break
+                        }
+                    }
+                    if {$cur_mode != ""} {
+                        break
+                    }
+                }
+            } else {
+                set my_exp_cmd ""
+                if {$auto_response == 1} {
+                    foreach {pattern response} $auto_response_list {
+                        append my_exp_cmd "-re {$pattern} {append ret_buffer \$expect_out(buffer);my_send $response\\r; exp_continue}\n"
+                    }
+                }
+                foreach {mode_name mode_pattern} $mode_list {
+                    append my_exp_cmd "-re {$mode_pattern} {append ret_buffer \$expect_out(buffer); return \[list $mode_name \$ret_buffer\]}\n"
+                }
+                append my_exp_cmd "full_buffer {append ret_buffer \$expect_out(buffer); log_debug full_buffer; exp_continue}\n"
+                append my_exp_cmd "timeout {log_debug timeout;return}\n"
+                set my_exp_cmd "$my_exp_cmd"
+                log_debug "exp_cmd $my_exp_cmd"
+                set ret [my_expect {*}$my_exp_cmd]
+                set cur_mode [lindex $ret 0]
+                set ret_buffer [lindex $ret 1]
+                log_device $ret_buffer
+            }
+        }
+        if {$opts(-get_mode) == 0} {
+            return $ret_buffer
+        } else {
+            return $cur_mode
+        }
+    }
+    private method get_next_mode {cur_mode} {
+        set cur_index [lsearch $slow_path $cur_mode]
+        if {$cur_index == -1} {error "no $cur_mode in this path"}
+        if {$cur_index == [expr [llength $slow_path] - 1]} {
+            set tar_index 0
+        } else {
+            set tar_index [expr $cur_index + 1]
+        }
+        return [lindex $slow_path $tar_index]
+    }
+    private method get_prev_mode {cur_mode} {
+        set cur_index [lsearch $slow_path $cur_mode]
+        if {$cur_index == -1} {error "no $cur_mode in this path"}
+        if {$cur_index == 0]} {
+            set tar_index end
+        } else {
+            set tar_index [expr $cur_index - 1]
+        }
+        return [lindex $slow_path $tar_index]
+    }
+    private method calc_fw_path_weight {cur_mode tar_mode} {
+        if {$cur_mode == $tar_mode} {return 0}
+        set next_mode [get_next_mode $cur_mode]
+        return [expr [calc_fw_path_weight $next_mode $tar_mode] + $path($cur_mode,$next_mode,weight)]
+    }
+    private method calc_bw_path_weight {cur_mode tar_mode} {
+        if {$cur_mode == $tar_mode} {return 0}
+        set prev_mode [get_prev_mode $cur_mode]
+        return [expr [calc_bw_path_weight $prev_mode $tar_mode] + $path($prev_mode,$cur_mode,weight)]
+    }
+    public method to_mode {mode_name} {
+        set cur_mode [get_mode]
+        if {$mode_name == $cur_mode} {return}
+        if [info exists path($cur_mode,$mode_name)] {
+            send_line $path($cur_mode,$mode_name)
+            return [get_mode]
+        } else {
+            if {[expr [calc_fw_path_weight $cur_mode $mode_name] > [calc_bw_path_weight $cur_mode $mode_name]]} {
+                to_mode [get_prev_mode $cur_mode]
+                to_mode $mode_name
+            } else {
+                to_mode [get_next_mode $cur_mode]
+                to_mode $mode_name
+            }
+        }
+    }
+}

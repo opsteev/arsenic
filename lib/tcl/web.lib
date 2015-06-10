@@ -1,0 +1,549 @@
+#Author:    Feng Ding
+#Mail:      opsteev@gmail.com
+#History:   Init    2015-5-22   Feng Ding
+
+package req Itcl
+package req LOG
+
+package provide WEB
+
+itcl::class WEB {
+    inherit LOG
+    public variable browser_ip
+    public variable browser_port
+    public variable browser_cmd
+    public variable browser_url
+    private variable session_id
+    private variable selenium_url
+    private variable picture_id
+    private variable picture_dir
+    constructor {} {
+        set picture_id 10000
+        set session_id ""
+        set picture_dir ./picture
+    }
+    destructor {
+        set session_id ""
+    }
+    private method selenium_cmd {cmd args} {
+        #Inspired by Jean-Claude http://wiki.tcl.tk/17883
+        set temp_url $selenium_url
+        set query [list http::formatQuery cmd $cmd]
+        foreach arg $args {
+            lappend query [incr i] $arg
+        }
+        if {$session_id != ""} {
+            lappend query sessionId $session_id
+        }
+        append temp_url [eval $query]
+        set token [http::geturl $temp_url]
+        set data [http::data $token]
+        catch {http::clean $token}
+        if {[string range $data 0 1] != "OK"} {
+            error "$data"
+        }
+        return [string range $data 3 end]
+    }
+    public method start {args} {
+        set selenium_url "http://$browser_ip:$browser_port/selenium-sever/server?"
+        set selenium_id [selenium_cmd getNewBrowserSession $browser_cmd $browser_url]
+    }
+    public method stop {args} {
+        catch {selenium_cmd testComplete}
+        set session_id ""
+    }
+    
+    
+    public method addCustomRequestHeader { args } {
+	    return [selenium_cmd addCustomRequestHeader $args]
+    }
+    public method addLocationStrategy { args } {
+	    return [selenium_cmd addLocationStrategy $args]
+    }
+    public method addScript { args } {
+	    return [selenium_cmd addScript $args]
+    }
+    public method addSelection { args } {
+	    return [selenium_cmd addSelection $args]
+    }
+    public method allowNativeXpath { args } {
+	    return [selenium_cmd allowNativeXpath $args]
+    }
+    public method altKeyDown { args } {
+	    return [selenium_cmd altKeyDown $args]
+    }
+    public method doAltUp { args } {
+	    return [selenium_cmd doAltUp $args]
+    }
+    public method altKeyUp { args } {
+	    return [selenium_cmd altKeyUp $args]
+    }
+    public method answerOnNextPrompt { args } {
+	    return [selenium_cmd answerOnNextPrompt $args]
+    }
+    public method assignId { args } {
+	    return [selenium_cmd assignId $args]
+    }
+    public method attachFile { args } {
+	    return [selenium_cmd attachFile $args]
+    }
+    public method captureEntirePageScreenshotToString { args } {
+	    return [selenium_cmd captureEntirePageScreenshotToString $args]
+    }
+    public method captureNetworkTraffic { args } {
+	    return [selenium_cmd captureNetworkTraffic $args]
+    }
+    public method captureScreenshotToString { args } {
+	    return [selenium_cmd captureScreenshotToString $args]
+    }
+    public method check { args } {
+	    return [selenium_cmd check $args]
+    }
+    public method chooseCancelOnNextConfirmation { args } {
+	    return [selenium_cmd chooseCancelOnNextConfirmation $args]
+    }
+    public method chooseOkOnNextConfirmation { args } {
+	    return [selenium_cmd chooseOkOnNextConfirmation $args]
+    }
+    public method click { args } {
+	    return [selenium_cmd click $args]
+    }
+    public method clickAt { args } {
+	    return [selenium_cmd clickAt $args]
+    }
+    public method closeUrl { args } {
+	    return [selenium_cmd closeUrl $args]
+    }
+    public method contextMenu { args } {
+	    return [selenium_cmd contextMenu $args]
+    }
+    public method contextMenuAt { args } {
+	    return [selenium_cmd contextMenuAt $args]
+    }
+    public method controlKeyDown { args } {
+	    return [selenium_cmd controlKeyDown $args]
+    }
+    public method doControlUp { args } {
+	    return [selenium_cmd doControlUp $args]
+    }
+    public method controlKeyUp { args } {
+	    return [selenium_cmd controlKeyUp $args]
+    }
+    public method createCookie { args } {
+	    return [selenium_cmd createCookie $args]
+    }
+    public method deleteAllVisibleCookies { args } {
+	    return [selenium_cmd deleteAllVisibleCookies $args]
+    }
+    public method deleteCookie { args } {
+	    return [selenium_cmd deleteCookie $args]
+    }
+    public method deselectPopUp { args } {
+	    return [selenium_cmd deselectPopUp $args]
+    }
+    public method doubleClick { args } {
+	    return [selenium_cmd doubleClick $args]
+    }
+    public method doubleClickAt { args } {
+	    return [selenium_cmd doubleClickAt $args]
+    }
+    public method dragAndDrop { args } {
+	    return [selenium_cmd dragAndDrop $args]
+    }
+    public method dragAndDropToObject { args } {
+	    return [selenium_cmd dragAndDropToObject $args]
+    }
+    public method dragdrop { args } {
+	    return [selenium_cmd dragdrop $args]
+    }
+    public method fireEvent { args } {
+	    return [selenium_cmd fireEvent $args]
+    }
+    public method focus { args } {
+	    return [selenium_cmd focus $args]
+    }
+    public method getAlert { args } {
+	    return [selenium_cmd getAlert $args]
+    }
+    public method getAllButtons { args } {
+	    return [selenium_cmd getAllButtons $args]
+    }
+    public method getAllFields { args } {
+	    return [selenium_cmd getAllFields $args]
+    }
+    public method getAllLinks { args } {
+	    return [selenium_cmd getAllLinks $args]
+    }
+    public method getAllWindowIds { args } {
+	    return [selenium_cmd getAllWindowIds $args]
+    }
+    public method getAllWindowNames { args } {
+	    return [selenium_cmd getAllWindowNames $args]
+    }
+    public method getAllWindowTitles { args } {
+	    return [selenium_cmd getAllWindowTitles $args]
+    }
+    public method getAttribute { args } {
+	    return [selenium_cmd getAttribute $args]
+    }
+    public method getAttributeFromAllWindows { args } {
+	    return [selenium_cmd getAttributeFromAllWindows $args]
+    }
+    public method getBodyText { args } {
+	    return [selenium_cmd getBodyText $args]
+    }
+    public method getConfirmation { args } {
+	    return [selenium_cmd getConfirmation $args]
+    }
+    public method getCookie { args } {
+	    return [selenium_cmd getCookie $args]
+    }
+    public method getCookieByName { args } {
+	    return [selenium_cmd getCookieByName $args]
+    }
+    public method getCursorPosition { args } {
+	    return [selenium_cmd getCursorPosition $args]
+    }
+    public method getElementHeight { args } {
+	    return [selenium_cmd getElementHeight $args]
+    }
+    public method getElementIndex { args } {
+	    return [selenium_cmd getElementIndex $args]
+    }
+    public method getElementPositionLeft { args } {
+	    return [selenium_cmd getElementPositionLeft $args]
+    }
+    public method getElementPositionTop { args } {
+	    return [selenium_cmd getElementPositionTop $args]
+    }
+    public method getElementWidth { args } {
+	    return [selenium_cmd getElementWidth $args]
+    }
+    public method getEval { args } {
+	    return [selenium_cmd getEval $args]
+    }
+    public method getExpression { args } {
+	    return [selenium_cmd getExpression $args]
+    }
+    public method getHtmlSource { args } {
+	    return [selenium_cmd getHtmlSource $args]
+    }
+    public method getLocation { args } {
+	    return [selenium_cmd getLocation $args]
+    }
+    public method getMouseSpeed { args } {
+	    return [selenium_cmd getMouseSpeed $args]
+    }
+    public method getPrompt { args } {
+	    return [selenium_cmd getPrompt $args]
+    }
+    public method getSelectedId { args } {
+	    return [selenium_cmd getSelectedId $args]
+    }
+    public method getSelectedIds { args } {
+	    return [selenium_cmd getSelectedIds $args]
+    }
+    public method getSelectedIndex { args } {
+	    return [selenium_cmd getSelectedIndex $args]
+    }
+    public method getSelectedIndexes { args } {
+	    return [selenium_cmd getSelectedIndexes $args]
+    }
+    public method getSelectedLabel { args } {
+	    return [selenium_cmd getSelectedLabel $args]
+    }
+    public method getSelectedLabels { args } {
+	    return [selenium_cmd getSelectedLabels $args]
+    }
+    public method getSelectedValue { args } {
+	    return [selenium_cmd getSelectedValue $args]
+    }
+    public method getSelectedValues { args } {
+	    return [selenium_cmd getSelectedValues $args]
+    }
+    public method getSelectOptions { args } {
+	    return [selenium_cmd getSelectOptions $args]
+    }
+    public method getSpeed { args } {
+	    return [selenium_cmd getSpeed $args]
+    }
+    public method getTable { args } {
+	    return [selenium_cmd getTable $args]
+    }
+    public method getText { args } {
+	    return [selenium_cmd getText $args]
+    }
+    public method getTitle { args } {
+	    return [selenium_cmd getTitle $args]
+    }
+    public method getValue { args } {
+	    return [selenium_cmd getValue $args]
+    }
+    public method getWhetherThisFrameMatchFrameExpression { args } {
+	    return [selenium_cmd getWhetherThisFrameMatchFrameExpression $args]
+    }
+    public method getWhetherThisWindowMatchWindowExpression { args } {
+	    return [selenium_cmd getWhetherThisWindowMatchWindowExpression $args]
+    }
+    public method getXpathCount { args } {
+	    return [selenium_cmd getXpathCount $args]
+    }
+    public method goBack { args } {
+	    return [selenium_cmd goBack $args]
+    }
+    public method highlight { args } {
+	    return [selenium_cmd highlight $args]
+    }
+    public method ignoreAttributesWithoutValue { args } {
+	    return [selenium_cmd ignoreAttributesWithoutValue $args]
+    }
+    public method isAlertPresent { args } {
+	    return [selenium_cmd isAlertPresent $args]
+    }
+    public method isChecked { args } {
+	    return [selenium_cmd isChecked $args]
+    }
+    public method isConfirmationPresent { args } {
+	    return [selenium_cmd isConfirmationPresent $args]
+    }
+    public method confirm { args } {
+	    return [selenium_cmd confirm $args]
+    }
+    public method isCookiePresent { args } {
+	    return [selenium_cmd isCookiePresent $args]
+    }
+    public method isEditable { args } {
+	    return [selenium_cmd isEditable $args]
+    }
+    public method isElementPresent { args } {
+	    return [selenium_cmd isElementPresent $args]
+    }
+    public method isOrdered { args } {
+	    return [selenium_cmd isOrdered $args]
+    }
+    public method isPromptPresent { args } {
+	    return [selenium_cmd isPromptPresent $args]
+    }
+    public method isSomethingSelected { args } {
+	    return [selenium_cmd isSomethingSelected $args]
+    }
+    public method isTextPresent { args } {
+	    return [selenium_cmd isTextPresent $args]
+    }
+    public method isVisible { args } {
+	    return [selenium_cmd isVisible $args]
+    }
+    public method keyDown { args } {
+	    return [selenium_cmd keyDown $args]
+    }
+    public method keyDownNative { args } {
+	    return [selenium_cmd keyDownNative $args]
+    }
+    public method keyPress { args } {
+	    return [selenium_cmd keyPress $args]
+    }
+    public method keyPressNative { args } {
+	    return [selenium_cmd keyPressNative $args]
+    }
+    public method keyUp { args } {
+	    return [selenium_cmd keyUp $args]
+    }
+    public method keyUpNative { args } {
+	    return [selenium_cmd keyUpNative $args]
+    }
+    public method metaKeyDown { args } {
+	    return [selenium_cmd metaKeyDown $args]
+    }
+    public method doMetaUp { args } {
+	    return [selenium_cmd doMetaUp $args]
+    }
+    public method metaKeyUp { args } {
+	    return [selenium_cmd metaKeyUp $args]
+    }
+    public method mouseDown { args } {
+	    return [selenium_cmd mouseDown $args]
+    }
+    public method mouseDownAt { args } {
+	    return [selenium_cmd mouseDownAt $args]
+    }
+    public method mouseDownRight { args } {
+	    return [selenium_cmd mouseDownRight $args]
+    }
+    public method mouseDownRightAt { args } {
+	    return [selenium_cmd mouseDownRightAt $args]
+    }
+    public method mouseMove { args } {
+	    return [selenium_cmd mouseMove $args]
+    }
+    public method mouseMoveAt { args } {
+	    return [selenium_cmd mouseMoveAt $args]
+    }
+    public method mouseOut { args } {
+	    return [selenium_cmd mouseOut $args]
+    }
+    public method mouseOver { args } {
+	    return [selenium_cmd mouseOver $args]
+    }
+    public method mouseUp { args } {
+	    return [selenium_cmd mouseUp $args]
+    }
+    public method mouseUpAt { args } {
+	    return [selenium_cmd mouseUpAt $args]
+    }
+    public method mouseUpRight { args } {
+	    return [selenium_cmd mouseUpRight $args]
+    }
+    public method mouseUpRightAt { args } {
+	    return [selenium_cmd mouseUpRightAt $args]
+    }
+    public method openUrl { args } {
+	    return [selenium_cmd open $args]
+    }
+    public method openWindow { args } {
+	    return [selenium_cmd openWindow $args]
+    }
+    public method refresh { args } {
+	    return [selenium_cmd refresh $args]
+    }
+    public method removeAllSelections { args } {
+	    return [selenium_cmd removeAllSelections $args]
+    }
+    public method removeScript { args } {
+	    return [selenium_cmd removeScript $args]
+    }
+    public method removeSelection { args } {
+	    return [selenium_cmd removeSelection $args]
+    }
+    public method retrieveLastRemoteControlLogs { args } {
+	    return [selenium_cmd retrieveLastRemoteControlLogs $args]
+    }
+    public method rollup { args } {
+	    return [selenium_cmd rollup $args]
+    }
+    public method runScript { args } {
+	    return [selenium_cmd runScript $args]
+    }
+    public method select { args } {
+	    return [selenium_cmd select $args]
+    }
+    public method selectFrame { args } {
+	    return [selenium_cmd selectFrame $args]
+    }
+    public method selectPopUp { args } {
+	    return [selenium_cmd selectPopUp $args]
+    }
+    public method selectWindow { args } {
+	    return [selenium_cmd selectWindow $args]
+    }
+    public method setBrowserLogLevel { args } {
+	    return [selenium_cmd setBrowserLogLevel $args]
+    }
+    public method setContext { args } {
+	    return [selenium_cmd setContext $args]
+    }
+    public method setCursorPosition { args } {
+	    return [selenium_cmd setCursorPosition $args]
+    }
+    public method setExtensionJs { args } {
+	    return [selenium_cmd setExtensionJs $args]
+    }
+    public method setMouseSpeed { args } {
+	    return [selenium_cmd setMouseSpeed $args]
+    }
+    public method setSpeed { args } {
+	    return [selenium_cmd setSpeed $args]
+    }
+    public method setTimeout { args } {
+	    return [selenium_cmd setTimeout $args]
+    }
+    public method shiftKeyDown { args } {
+	    return [selenium_cmd shiftKeyDown $args]
+    }
+    public method doShiftUp { args } {
+	    return [selenium_cmd doShiftUp $args]
+    }
+    public method shiftKeyUp { args } {
+	    return [selenium_cmd shiftKeyUp $args]
+    }
+    public method showContextualBanner { args } {
+	    return [selenium_cmd showContextualBanner $args]
+    }
+    public method shutDownSeleniumServer { args } {
+	    return [selenium_cmd shutDownSeleniumServer $args]
+    }
+    public method submit { args } {
+	    return [selenium_cmd submit $args]
+    }
+    public method type { args } {
+	    return [selenium_cmd type $args]
+    }
+    public method typeKeys { args } {
+	    return [selenium_cmd typeKeys $args]
+    }
+    public method uncheck { args } {
+	    return [selenium_cmd uncheck $args]
+    }
+    public method useXpathLibrary { args } {
+	    return [selenium_cmd useXpathLibrary $args]
+    }
+    public method waitForCondition { args } {
+	    return [selenium_cmd waitForCondition $args]
+    }
+    public method waitForFrameToLoad { args } {
+	    return [selenium_cmd waitForFrameToLoad $args]
+    }
+    public method waitForPageToLoad { args } {
+	    return [selenium_cmd waitForPageToLoad $args]
+    }
+    public method waitForPopUp { args } {
+	    return [selenium_cmd waitForPopUp $args]
+    }
+    public method windowFocus { args } {
+	    return [selenium_cmd windowFocus $args]
+    }
+    public method windowMaximize { args } {
+	    return [selenium_cmd windowMaximize $args]
+    }
+    public method captureEntirePageScreenshot {args} {
+        set opts(-dir) picture_dir
+        array set opts $args
+        if {![file exists $opts(-dir)]} {
+            catch {file mkdir $opts(-dir)}
+        }
+        set pic_file [file join $opts(-dir) "$picture_id.png"]
+        while {[file exists $pic_file]} {
+            incr picture_id
+            set pic_file [file join $opts(-dir) $picture_id.png]
+        }
+        catch {
+            set fd [open $pic_file w+]
+            fconfigure $fd -encoding binary
+            set str [selenium_cmd captureEntirePageScreenshotToString]
+            puts $fd [::base64::decode $str]
+            close $fd
+            incr picture_id
+        }
+        return $pic_file
+    }
+    public method captureScreenshot {args} {
+        set opts(-dir) picture_dir
+        array set opts $args
+        if {![file exists $opts(-dir)]} {
+            catch {file mkdir $opts(-dir)}
+        }
+        set pic_file [file join $opts(-dir) "$picture_id.png"]
+        while {[file exists $pic_file]} {
+            incr picture_id
+            set pic_file [file join $opts(-dir) $picture_id.png]
+        }
+        catch {
+            set fd [open $pic_file w+]
+            fconfigure $fd -encoding binary
+            set str [selenium_cmd captureScreenshotToString]
+            puts $fd [::base64::decode $str]
+            close $fd
+            incr picture_id
+        }
+        return $pic_file
+    }
+}

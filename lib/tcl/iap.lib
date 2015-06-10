@@ -1,0 +1,31 @@
+#Author:    Feng Ding
+#Mail:      opsteev@gmail.com
+#Description: Control library For Aruba Instant AP
+#History:   2015-05-30      Feng Ding
+
+package req DEV
+
+itcl::class IAP {
+    inherit DEV
+    constructor {args} {
+        set mgt_type telnet
+        set mgt_ip 10.65.24.70
+        set mgt_port 4013
+        set mgt_username admin
+        set mgt_password admin
+        set logon 1
+        set logon_prompt .*
+        add_mode shell {~ #[\s]*$}
+        add_mode cli {[\da-f]+#[\s]*$}
+        add_mode config {[\da-f]+ \(config\) #[\s]*$}
+        add_mode config_deep {[\da-f]+ \(.+\) #[\s]*$}
+        add_mode apboot {apboot>[\s]*$}
+        add_path shell cli "exit" "support\nS1erraOn#"
+        add_path cli config "config terminal" "exit"
+        add_path config_deep cli "end" ""
+        add_path shell apboot "reboot" "reset" -fw_timeout 300 -bw_timeout 300
+        add_auto_response {User:} "$mgt_username"
+        add_auto_response {assword:} "$mgt_password"
+        set_path "apboot cli config config_deep"
+    }
+}
